@@ -8,10 +8,10 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "run = normal check, test = send a test Telegram message"
+        description: "run = normal check, test = send a test Telegram message, demo = replay the last trading day's alerts"
         default: run
         type: choice
-        options: [run, test]
+        options: [run, test, demo]
 
 permissions:
   contents: write
@@ -35,7 +35,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           P4_EXPIRY_WEEKDAY: ${{ vars.P4_EXPIRY_WEEKDAY || '1' }}
         run: |
-          if [ "${{ github.event.inputs.mode }}" = "test" ]; then python power4.py test; else python power4.py; fi
+          case "${{ github.event.inputs.mode }}" in test) python power4.py test ;; demo) python power4.py demo ;; *) python power4.py ;; esac
       - name: Save status for the website
         run: |
           git config user.name "power4-bot"

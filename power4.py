@@ -174,8 +174,26 @@ def main():
     json.dump(status, open(STATUS, "w"), indent=1)
     print(json.dumps(snap, indent=1))
 
+def demo():
+    """Replay the last trading day's Power-4 events as Telegram messages (does not change status)."""
+    idx, vol = yahoo(INDEX), yahoo(VOLSYM)
+    snap, events = analyse(idx, vol, int(time.time()))
+    if not snap:
+        telegram("DEMO: no market data available."); return
+    day = snap["day"]; evs = [e for e in events if e["day"] == day]
+    nice = dt.datetime.strptime(day, "%Y-%m-%d").strftime("%a %d %b")
+    telegram(f"🧪 DEMO — replay of Power-4 alerts for {nice}. These are past signals, not live trades.")
+    if not evs:
+        telegram(f"DEMO: Power-4 gave no signals on {nice}.")
+    for e in evs:
+        time.sleep(1)
+        telegram(f"[DEMO {nice} {e['hm']}]\n" + message(e))
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "test":
+    mode = sys.argv[1] if len(sys.argv) > 1 else "run"
+    if mode == "test":
         telegram("✅ Power-4 bot is connected. You'll get alerts here during market hours.")
+    elif mode == "demo":
+        demo()
     else:
         main()
