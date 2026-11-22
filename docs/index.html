@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nifty Power-4 Alerts</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--line:#262b36;--text:#e6e8ec;--mute:#8b93a3;--green:#22c55e;--red:#ef4444;--amber:#f59e0b}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:760px;margin:0 auto;padding:16px;display:grid;gap:12px}
+  .bar{border-radius:12px;padding:16px;background:var(--panel);border:1px solid var(--line)}
+  .bar .m1{font-size:22px;font-weight:700} .bar .m2{color:#cbd5e1;font-size:14px;margin-top:4px}
+  .call{background:#0f3d22;border-color:var(--green)} .put{background:#4a1418;border-color:var(--red)}
+  .done{background:#3a2a0b;border-color:var(--amber)} .trade{background:#1e293b}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+  .c{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .k{color:var(--mute);font-size:12px} .v{font-size:17px;font-weight:650} .up{color:var(--green)} .dn{color:var(--red)} .mx{color:var(--mute)}
+  ul{list-style:none;padding:0;margin:0} li{padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  .sub{color:var(--mute);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sub">Nifty Power-4 · 15-min · EMA 20/50 + RSI 55–70 + VWAP + opening range · 1:2 ATR exits</div>
+  <div class="bar" id="bar"><div class="m1" id="m1">Loading…</div><div class="m2" id="m2"></div></div>
+  <div class="grid">
+    <div class="c"><div class="k">Trend · EMA 20/50</div><div class="v" id="trend">—</div><div class="sub" id="trendD"></div></div>
+    <div class="c"><div class="k">RSI 14</div><div class="v" id="rsi">—</div><div class="sub" id="rsiD"></div></div>
+    <div class="c"><div class="k">VWAP (NIFTYBEES)</div><div class="v" id="vwap">—</div><div class="sub" id="vwapD"></div></div>
+    <div class="c"><div class="k">Opening range</div><div class="v" id="or">—</div><div class="sub" id="orD"></div></div>
+  </div>
+  <div class="c"><div class="k">Today's events</div><ul id="ev"><li class="sub">None yet</li></ul></div>
+  <div class="sub" id="upd"></div>
+  <div class="sub">Updated by GitHub Actions about every 5 minutes during market hours (can run late when GitHub is busy). Alerts also go to Telegram. Not financial advice.</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const f=n=>n==null?"—":Number(n).toLocaleString("en-IN",{maximumFractionDigits:2});
+function set(id,txt,cls,d){$(id).textContent=txt;$(id).className="v "+cls;$(id+"D").textContent=d||"";}
+async function load(){
+  try{
+    const s=await (await fetch("status.json?ts="+Date.now(),{cache:"no-store"})).json();
+    const x=s.snapshot; $("upd").textContent="Last check: "+s.updated+(x?" · last closed candle "+x.day+" "+x.hm:"");
+    const ev=s.events||[]; const last=ev[ev.length-1];
+    $("ev").innerHTML=ev.length?ev.slice().reverse().map(e=>"<li>"+e.hm+" · "+(e.kind==="ENTRY"?(e.side==="CALL"?"🟢 BUY "+f(e.strike)+" CE":"🔴 BUY "+f(e.strike)+" PE")+" · SL "+f(e.sl)+" · TGT "+f(e.tg):e.kind==="TARGET"?"✅ Target hit ("+e.pts+" pts)":e.kind==="STOP"?"⛔ Stop hit ("+e.pts+" pts)":"⏰ 3:15 exit ("+e.pts+" pts)")+"</li>").join(""):'<li class="sub">None yet</li>';
+    if(!x){$("m1").textContent="Waiting for market data";return;}
+    set("trend",x.trend,x.trend==="UP"?"up":x.trend==="DOWN"?"dn":"mx","EMA20 "+f(x.ema20)+" · EMA50 "+f(x.ema50));
+    set("rsi",x.rsi_state,x.rsi_state==="BULL"?"up":x.rsi_state==="BEAR"?"dn":"mx","RSI "+x.rsi+(x.rsi_rising?" rising":" falling"));
+    set("vwap",x.vwap_state,x.vwap_state==="ABOVE"?"up":"dn","NIFTYBEES "+f(x.bees)+" vs VWAP "+f(x.bees_vwap));
+    set("or",x.or_state,x.or_state==="BROKEN UP"?"up":x.or_state==="BROKEN DOWN"?"dn":"mx","High "+f(x.or_high)+" · Low "+f(x.or_low));
+    const bar=$("bar");
+    if(last&&last.kind==="ENTRY"&&x.dir!==0&&last.t===x.t){bar.className="bar "+(last.side==="CALL"?"call":"put");$("m1").textContent=(last.side==="CALL"?"🟢 BUY NIFTY "+f(last.strike)+" CE (ATM)":"🔴 BUY NIFTY "+f(last.strike)+" PE (ATM)");$("m2").textContent="Stop "+f(last.sl)+" · Target "+f(last.tg)+" · Exit by 3:15 PM";}
+    else if(x.locked){bar.className="bar done";$("m1").textContent="⛔ Done for today";$("m2").textContent="A trade was stopped out. One loss per day.";}
+    else if(x.dir!==0){bar.className="bar trade";$("m1").textContent=(x.dir===1?"📈 In CALL trade":"📉 In PUT trade")+" · SL "+f(x.sl)+" · Target "+f(x.tg);$("m2").textContent="Hold until stop or target, or exit at 3:15 PM.";}
+    else{bar.className="bar";$("m1").textContent="🔕 Watching for a Power-4 setup";$("m2").textContent=x.in_window?"No setup on the last closed candle.":"Outside entry hours (9:30 AM – 2:30 PM).";}
+  }catch(e){$("m1").textContent="Couldn't load status yet";$("m2").textContent="The bot hasn't run, or GitHub Pages is still publishing.";}
+}
+load(); setInterval(load,60000);
+</script>
+</body>
+</html>
