@@ -8,7 +8,7 @@ Rules (15-minute candles):
 Sends Telegram messages for new events and writes docs/status.json for the GitHub Pages site.
 Not financial advice.
 """
-import json, os, sys, time, urllib.request, urllib.parse, datetime as dt
+import json, os, sys, time, urllib.request, urllib.parse, urllib.error, datetime as dt
 
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 INDEX = os.environ.get("P4_INDEX", "^NSEI")          # Nifty 50 (Yahoo Finance)
@@ -134,15 +134,31 @@ def analyse(idx, vol, now_ts):
     return snap, events
 
 # ---------------- notify ----------------
+TG_ERRORS = []
+
 def telegram(text):
-    tok, chat = os.environ.get("TELEGRAM_TOKEN"), os.environ.get("TELEGRAM_CHAT_ID")
+    tok = (os.environ.get("TELEGRAM_TOKEN") or "").strip()
+    chat = (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
+    if tok.lower().startswith("bot") and ":" in tok[3:]:
+        tok = tok[3:]                       # people sometimes paste "bot123:ABC"
     if not tok or not chat:
-        print("[telegram not configured]\n" + text); return
+        msg = "TELEGRAM NOT CONFIGURED: secret " + ("TELEGRAM_TOKEN" if not tok else "TELEGRAM_CHAT_ID") + " is missing or empty."
+        print(msg); TG_ERRORS.append(msg); return False
     data = urllib.parse.urlencode({"chat_id": chat, "text": text}).encode()
     try:
         urllib.request.urlopen("https://api.telegram.org/bot" + tok + "/sendMessage", data=data, timeout=20).read()
+        print("Telegram message sent to chat", chat[:3] + "***")
+        return True
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="ignore")
+        hint = ""
+        if e.code == 401 or e.code == 404: hint = " -> TELEGRAM_TOKEN is wrong. Copy it again from @BotFather (/mybots -> API Token)."
+        elif "chat not found" in body: hint = " -> TELEGRAM_CHAT_ID is wrong, or you haven't pressed Start in your bot."
+        elif "blocked" in body: hint = " -> You blocked the bot. Unblock it in Telegram."
+        msg = f"TELEGRAM ERROR {e.code}: {body}{hint}"
     except Exception as e:
-        print("telegram failed", e, file=sys.stderr)
+        msg = f"TELEGRAM ERROR: {e}"
+    print(msg, file=sys.stderr); TG_ERRORS.append(msg); return False
 
 def message(e):
     if e["kind"] == "ENTRY":
@@ -197,3 +213,6 @@ if __name__ == "__main__":
         demo()
     else:
         main()
+    if TG_ERRORS and mode in ("test", "demo"):
+        print("\n".join(TG_ERRORS), file=sys.stderr)
+        sys.exit(1)   # make the run show a red X so the problem is visible
