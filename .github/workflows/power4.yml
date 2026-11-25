@@ -1,45 +1,49 @@
 name: Power-4 alerts
 
 on:
+  # Starts (or restarts) the all-day loop. Pushing a change to the bot also starts it.
   schedule:
-    # Every 5 minutes, Mon-Fri, 9:30 AM - 3:35 PM IST (times below are UTC)
-    - cron: "*/5 4-9 * * 1-5"
-    - cron: "0,5 10 * * 1-5"
+    - cron: "40 3 * * 1-5"     # 09:10 IST, Mon-Fri (backup restart; GitHub may run it late)
+  push:
+    branches: [main]
+    paths: ["loop.py", "power4.py", ".github/workflows/power4.yml"]
   workflow_dispatch:
     inputs:
       mode:
-        description: "run = normal check, test = send a test Telegram message, demo = replay the last trading day's alerts"
-        default: run
+        description: "loop = keep checking all session (normal), run = one check, test = Telegram test, demo = replay last day's alerts"
+        default: loop
         type: choice
-        options: [run, test, demo]
+        options: [loop, run, test, demo]
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
-  group: power4
+  group: power4-${{ github.event.inputs.mode || 'loop' }}
   cancel-in-progress: false
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run Power-4 check
+      - name: Run Power-4
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           P4_EXPIRY_WEEKDAY: ${{ vars.P4_EXPIRY_WEEKDAY || '1' }}
-        run: |
-          case "${{ github.event.inputs.mode }}" in test) python power4.py test ;; demo) python power4.py demo ;; *) python power4.py ;; esac
-      - name: Save status for the website
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "power4-bot"
           git config user.email "power4-bot@users.noreply.github.com"
-          git add docs/status.json
-          git diff --cached --quiet || (git commit -m "Power-4 status update" && git push)
-          
+          case "${{ github.event.inputs.mode || 'loop' }}" in
+            test) python power4.py test ;;
+            demo) python power4.py demo ;;
+            run)  python power4.py && python -c "import loop; loop.save_status()" ;;
+            *)    python loop.py ;;
+          esac
