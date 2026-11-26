@@ -1,54 +1,30 @@
 {
- "updated": "2026-11-26 09:25 IST",
+ "updated": "2026-11-26 09:30 IST",
  "snapshot": {
-  "t": 1795599900,
-  "day": "2026-11-25",
-  "hm": "15:15",
-  "close": 25819.25,
-  "ema20": 25754.19,
-  "ema50": 25687.66,
-  "rsi": 58.8,
-  "rsi_rising": true,
-  "atr": 58.9,
-  "bees": 294.07,
-  "bees_vwap": 294.15,
-  "or_high": 25775.5,
-  "or_low": 25620.19921875,
+  "t": 1795664700,
+  "day": "2026-11-26",
+  "hm": "09:15",
+  "close": 25817.0,
+  "ema20": 25760.17,
+  "ema50": 25692.73,
+  "rsi": 58.5,
+  "rsi_rising": false,
+  "atr": 62.4,
+  "bees": 294.26,
+  "bees_vwap": 294.22,
+  "or_high": 25876.0,
+  "or_low": 25768.650390625,
   "trend": "UP",
-  "rsi_state": "BULL",
-  "vwap_state": "BELOW",
-  "or_state": "BROKEN UP",
+  "rsi_state": "NEUTRAL",
+  "vwap_state": "ABOVE",
+  "or_state": "INSIDE",
   "in_window": false,
   "dir": 0,
   "sl": null,
   "tg": null,
-  "locked": true
+  "locked": false
  },
- "events": [
-  {
-   "id": "1795581900-CALL",
-   "t": 1795581900,
-   "day": "2026-11-25",
-   "hm": "10:15",
-   "kind": "ENTRY",
-   "side": "CALL",
-   "price": 25805.3,
-   "strike": 25800,
-   "sl": 25732,
-   "tg": 25953,
-   "atr": 73.7
-  },
-  {
-   "id": "1795590900-STOP",
-   "t": 1795590900,
-   "day": "2026-11-25",
-   "hm": "12:45",
-   "kind": "STOP",
-   "side": "CALL",
-   "price": 25731.6,
-   "pts": -73.7
-  }
- ],
+ "events": [],
  "sent_ids": [
   "1795590900-STOP"
  ]
