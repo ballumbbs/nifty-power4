@@ -1,28 +1,28 @@
 {
- "updated": "2026-11-26 13:10 IST",
+ "updated": "2026-11-26 13:15 IST",
  "snapshot": {
-  "t": 1795677300,
+  "t": 1795678200,
   "day": "2026-11-26",
-  "hm": "12:45",
-  "close": 25901.3,
-  "ema20": 25867.91,
-  "ema50": 25780.6,
-  "rsi": 56.7,
+  "hm": "13:00",
+  "close": 25835.35,
+  "ema20": 25864.81,
+  "ema50": 25782.75,
+  "rsi": 49.0,
   "rsi_rising": false,
-  "atr": 57.5,
-  "bees": 295.3,
-  "bees_vwap": 295.03,
+  "atr": 58.4,
+  "bees": 294.6,
+  "bees_vwap": 295.02,
   "or_high": 25876.0,
   "or_low": 25768.650390625,
-  "trend": "UP",
+  "trend": "MIXED",
   "rsi_state": "NEUTRAL",
-  "vwap_state": "ABOVE",
-  "or_state": "BROKEN UP",
+  "vwap_state": "BELOW",
+  "or_state": "INSIDE",
   "in_window": true,
-  "dir": 1,
-  "sl": 25835,
-  "tg": 26049,
-  "locked": false
+  "dir": 0,
+  "sl": null,
+  "tg": null,
+  "locked": true
  },
  "events": [
   {
@@ -37,10 +37,21 @@
    "sl": 25835,
    "tg": 26049,
    "atr": 71.2
+  },
+  {
+   "id": "1795678200-STOP",
+   "t": 1795678200,
+   "day": "2026-11-26",
+   "hm": "13:00",
+   "kind": "STOP",
+   "side": "CALL",
+   "price": 25835.0,
+   "pts": -71.2
   }
  ],
  "sent_ids": [
   "1795590900-STOP",
-  "1795668300-CALL"
+  "1795668300-CALL",
+  "1795678200-STOP"
  ]
 }
