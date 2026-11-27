@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-27 15:35 IST",
+ "updated": "2026-11-27 15:40 IST",
  "snapshot": {
   "t": 1795772700,
   "day": "2026-11-27",
@@ -11,7 +11,7 @@
   "rsi_rising": true,
   "atr": 48.8,
   "bees": 292.15,
-  "bees_vwap": 293.28,
+  "bees_vwap": 293.25,
   "or_high": 25909.099609375,
   "or_low": 25803.599609375,
   "trend": "DOWN",
