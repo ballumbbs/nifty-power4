@@ -1,17 +1,17 @@
 {
- "updated": "2026-11-27 15:10 IST",
+ "updated": "2026-11-27 15:15 IST",
  "snapshot": {
-  "t": 1795770900,
+  "t": 1795771800,
   "day": "2026-11-27",
-  "hm": "14:45",
-  "close": 25627.8,
-  "ema20": 25705.28,
-  "ema50": 25746.2,
-  "rsi": 35.5,
+  "hm": "15:00",
+  "close": 25594.35,
+  "ema20": 25694.72,
+  "ema50": 25740.25,
+  "rsi": 32.3,
   "rsi_rising": false,
-  "atr": 50.7,
-  "bees": 292.46,
-  "bees_vwap": 293.47,
+  "atr": 51.5,
+  "bees": 291.9,
+  "bees_vwap": 293.36,
   "or_high": 25909.099609375,
   "or_low": 25803.599609375,
   "trend": "DOWN",
@@ -19,9 +19,9 @@
   "vwap_state": "BELOW",
   "or_state": "BROKEN DOWN",
   "in_window": false,
-  "dir": -1,
-  "sl": 25770,
-  "tg": 25603,
+  "dir": 0,
+  "sl": null,
+  "tg": null,
   "locked": false
  },
  "events": [
@@ -37,12 +37,23 @@
    "sl": 25770,
    "tg": 25603,
    "atr": 55.9
+  },
+  {
+   "id": "1795771800-TARGET",
+   "t": 1795771800,
+   "day": "2026-11-27",
+   "hm": "15:00",
+   "kind": "TARGET",
+   "side": "PUT",
+   "price": 25602.6,
+   "pts": 111.8
   }
  ],
  "sent_ids": [
   "1795590900-STOP",
   "1795668300-CALL",
   "1795678200-STOP",
-  "1795761900-PUT"
+  "1795761900-PUT",
+  "1795771800-TARGET"
  ]
 }
