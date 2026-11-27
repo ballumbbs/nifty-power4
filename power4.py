@@ -160,6 +160,113 @@ def telegram(text):
         msg = f"TELEGRAM ERROR: {e}"
     print(msg, file=sys.stderr); TG_ERRORS.append(msg); return False
 
+
+# ---------------- account tracking (all-in 1:2 on premium) ----------------
+ACCOUNT = os.path.join(os.path.dirname(__file__), "docs", "account.json")
+START_BAL = float(os.environ.get("P4_START_BALANCE", "7500"))
+STOP_PCT, TGT_PCT, LOT = 0.25, 0.50, 65
+
+def load_account():
+    try: return json.load(open(ACCOUNT))
+    except Exception:
+        return dict(start=START_BAL, balance=START_BAL, trade_no=0, open=None, history=[], tg_offset=0)
+
+def save_account(a):
+    os.makedirs(os.path.dirname(ACCOUNT), exist_ok=True)
+    json.dump(a, open(ACCOUNT, "w"), indent=1)
+
+def plan(balance):
+    lots, prem = 1, balance / LOT
+    while prem > 160 and lots < 10: lots += 1; prem = balance / (LOT * lots)
+    return lots, prem
+
+def rs(x): return "₹" + f"{x:,.0f}"
+
+def entry_message(e, a):
+    up = e["side"] == "CALL"
+    bal = a["balance"]; lots, prem = plan(bal)
+    kind = "CE" if up else "PE"
+    move = "higher" if up else "lower"
+    return (f'{"🟢" if up else "🔴"} POWER-4 TRADE #{a["trade_no"]} — BUY {e["side"]}\n'
+            f'Account: {rs(bal)} → spend it all\n'
+            f'Buy {lots} lot{"s" if lots > 1 else ""} ({lots*LOT} qty) of a NIFTY {kind} priced about ₹{prem:.0f}\n'
+            f'(start at {e["strike"]:,} {kind}, move to {move} strikes until the premium ≈ ₹{prem:.0f})\n'
+            f'1:2 rule on the price you pay (P): stop = 0.75 × P · target = 1.5 × P\n'
+            f'   e.g. buy at ₹{prem:.0f} → stop ₹{prem*0.75:.0f} · target ₹{prem*1.5:.0f}\n'
+            f'Backup Nifty levels: stop {e["sl"]:,} · target {e["tg"]:,} · exit by 3:15 PM\n'
+            f'After you exit, reply: /result BUY SELL  (e.g. /result {prem:.0f} {prem*1.5:.0f})')
+
+def apply_exit(e, a):
+    """Estimate the result from Power-4's exit (target = +50%, stop = -25%, 3:15 = proportional)."""
+    o = a.get("open")
+    if not o: return None
+    if e["kind"] == "TARGET": pct = TGT_PCT
+    elif e["kind"] == "STOP": pct = -STOP_PCT
+    else: pct = max(-STOP_PCT, min(TGT_PCT, STOP_PCT * (e["pts"] / o["atr"]) if o.get("atr") else 0))
+    before = o["balance_before"]; after = round(before * (1 + pct))
+    a["balance"] = after
+    a["history"].append(dict(no=o["no"], day=e["day"], side=o["side"], before=before, after=after, kind=e["kind"], estimated=True))
+    a["open"] = None
+    return pct, before, after
+
+def exit_message(e, res, a):
+    pct, before, after = res
+    head = {"TARGET": "✅ POWER-4 TARGET HIT", "STOP": "⛔ POWER-4 STOP HIT", "TIME": "⏰ POWER-4 3:15 PM EXIT"}[e["kind"]]
+    tail = " Done for today." if e["kind"] == "STOP" else ""
+    lots, prem = plan(after)
+    return (f'{head} — trade #{a["history"][-1]["no"]} ({e["side"]}). Exit now.{tail}\n'
+            f'Estimated balance: {rs(before)} → {rs(after)} ({pct*100:+.0f}%)\n'
+            f'Next trade amount: {rs(after)} (premium ≈ ₹{prem:.0f} for {lots} lot{"s" if lots > 1 else ""})\n'
+            f'Reply /result BUY SELL with your real prices to correct it.')
+
+def poll_commands(a):
+    """Read replies sent to the bot: /result BUY SELL, /balance, /setbalance N, /reset."""
+    tok = (os.environ.get("TELEGRAM_TOKEN") or "").strip()
+    chat = (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
+    if tok.lower().startswith("bot") and ":" in tok[3:]: tok = tok[3:]
+    if not tok or not chat: return
+    try:
+        url = f"https://api.telegram.org/bot{tok}/getUpdates?timeout=0&offset={a.get('tg_offset', 0)}"
+        ups = json.load(urllib.request.urlopen(url, timeout=20)).get("result", [])
+    except Exception as e:
+        print("getUpdates failed", e, file=sys.stderr); return
+    for u in ups:
+        a["tg_offset"] = u["update_id"] + 1
+        m = u.get("message") or {}
+        if str((m.get("chat") or {}).get("id")) != chat: continue
+        parts = (m.get("text") or "").strip().split()
+        if not parts: continue
+        cmd = parts[0].lower().split("@")[0]
+        try:
+            if cmd == "/result" and len(parts) >= 3:
+                buy, sell = float(parts[1]), float(parts[2])
+                if buy <= 0 or sell < 0: raise ValueError
+                if a.get("open"):
+                    a["open"]["actual"] = dict(buy=buy, sell=sell)
+                    telegram(f"Noted for the open trade #{a['open']['no']}: bought ₹{buy:g}, sold ₹{sell:g}. Balance updates when the trade closes.")
+                    continue
+                if not a["history"]:
+                    telegram("No finished trade to update yet."); continue
+                h = a["history"][-1]
+                h["after"] = round(h["before"] * sell / buy); h["estimated"] = False; h["buy"] = buy; h["sell"] = sell
+                a["balance"] = h["after"]
+                lots, prem = plan(a["balance"])
+                telegram(f"✔ Trade #{h['no']} updated: {rs(h['before'])} → {rs(h['after'])} ({(sell/buy-1)*100:+.0f}%).\nNext trade amount: {rs(a['balance'])} (premium ≈ ₹{prem:.0f} for {lots} lot).")
+            elif cmd == "/balance":
+                lots, prem = plan(a["balance"])
+                wins = sum(1 for h in a["history"] if h["after"] > h["before"])
+                telegram(f"Balance {rs(a['balance'])} (started {rs(a['start'])}, {len(a['history'])} trades, {wins} wins).\nNext trade: {rs(a['balance'])} → premium ≈ ₹{prem:.0f} for {lots} lot.")
+            elif cmd == "/setbalance" and len(parts) >= 2:
+                a["balance"] = float(parts[1]); telegram(f"Balance set to {rs(a['balance'])}.")
+            elif cmd == "/reset":
+                b = float(parts[1]) if len(parts) > 1 else START_BAL
+                a.update(start=b, balance=b, trade_no=0, open=None, history=[])
+                telegram(f"Account reset to {rs(b)}. Next signal will be trade #1.")
+            elif cmd in ("/start", "/help"):
+                telegram("Commands:\n/result BUY SELL – your real prices after a trade\n/balance – current balance and next trade size\n/setbalance 8000 – set the balance\n/reset 7500 – start again")
+        except ValueError:
+            telegram("Couldn't read that. Example: /result 115 172")
+
 def message(e):
     if e["kind"] == "ENTRY":
         up = e["side"] == "CALL"
@@ -181,9 +288,25 @@ def main():
     except Exception: pass
     sent = set(old.get("sent_ids", []))
     today = dt.datetime.now(IST).strftime("%Y-%m-%d")
+    acct = load_account()
+    poll_commands(acct)
     for e in events:
         if e["day"] == today and e["id"] not in sent and now - (e["t"] + 900) < 45 * 60:
-            telegram(message(e)); sent.add(e["id"])
+            if e["kind"] == "ENTRY":
+                acct["trade_no"] += 1
+                acct["open"] = dict(no=acct["trade_no"], side=e["side"], balance_before=acct["balance"], atr=e["atr"], day=e["day"])
+                telegram(entry_message(e, acct))
+            elif acct.get("open"):
+                actual = acct["open"].get("actual")
+                res = apply_exit(e, acct)
+                if actual:
+                    h = acct["history"][-1]; h["after"] = round(h["before"] * actual["sell"] / actual["buy"]); h["estimated"] = False
+                    acct["balance"] = h["after"]; res = (actual["sell"]/actual["buy"] - 1, h["before"], h["after"])
+                telegram(exit_message(e, res, acct))
+            else:
+                telegram(message(e))
+            sent.add(e["id"])
+    save_account(acct)
     status = dict(updated=dt.datetime.now(IST).strftime("%Y-%m-%d %H:%M IST"), snapshot=snap,
                   events=[e for e in events if e["day"] == (snap or {}).get("day")], sent_ids=sorted(sent)[-200:])
     os.makedirs(os.path.dirname(STATUS), exist_ok=True)

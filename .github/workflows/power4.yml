@@ -38,6 +38,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           P4_EXPIRY_WEEKDAY: ${{ vars.P4_EXPIRY_WEEKDAY || '1' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          P4_START_BALANCE: ${{ vars.P4_START_BALANCE || '7500' }}
         run: |
           git config user.name "power4-bot"
           git config user.email "power4-bot@users.noreply.github.com"

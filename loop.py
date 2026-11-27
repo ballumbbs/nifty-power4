@@ -33,7 +33,7 @@ def git(*a):
     return subprocess.run(["git", *a], capture_output=True, text=True)
 
 def save_status():
-    git("add", "docs/status.json")
+    git("add", "docs/status.json", "docs/account.json")
     if git("diff", "--cached", "--quiet").returncode != 0:
         git("commit", "-q", "-m", "Power-4 status update")
         for _ in range(3):
